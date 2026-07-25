@@ -419,6 +419,7 @@
     <button data-mode="spawn">Spawn</button>
     <button data-mode="delete">Delete</button>
     <button data-mode="select">Select</button>
+    <button data-mode="modify">Modifier</button>
     <button data-mode="build">Constraints</button>
   </div>
 
@@ -472,8 +473,24 @@
       <label><span>color</span><span>visual</span></label>
       <input id="inspectColor" type="color" value="#808080">
       <div id="conveyorInspector" class="inspector-special">
-        <label><span>belt speed</span><span id="inspectConveyorValue">180</span></label>
-        <input id="inspectConveyor" type="range" min="-500" max="500" step="10" value="180">
+        <label><span>belt speed</span><span id="inspectConveyorValue">650</span></label>
+        <input id="inspectConveyor" type="range" min="-3000" max="3000" step="50" value="650">
+        <label><span>belt grip</span><span id="inspectConveyorGripValue">1</span></label>
+        <input id="inspectConveyorGrip" type="range" min="0.1" max="4" step="0.1" value="1">
+      </div>
+      <div id="sawInspector" class="inspector-special">
+        <label><span>spin speed</span><span id="inspectSawSpeedValue">5.5</span></label>
+        <input id="inspectSawSpeed" type="range" min="-30" max="30" step="0.5" value="5.5">
+      </div>
+      <div id="gunInspector" class="inspector-special">
+        <label><span>bullet speed</span><span id="inspectBulletSpeedValue">1250</span></label>
+        <input id="inspectBulletSpeed" type="range" min="200" max="3500" step="50" value="1250">
+        <label><span>recoil</span><span id="inspectGunRecoilValue">18</span></label>
+        <input id="inspectGunRecoil" type="range" min="0" max="100" step="2" value="18">
+      </div>
+      <div id="laserInspector" class="inspector-special">
+        <label><span>cut interval</span><span id="inspectLaserRateValue">0.12s</span></label>
+        <input id="inspectLaserRate" type="range" min="0.03" max="1" step="0.01" value="0.12">
       </div>
       <div id="explosiveInspector" class="inspector-special">
         <label><span>blast radius</span><span id="inspectBlastRadiusValue">200</span></label>
@@ -582,6 +599,19 @@
     conveyorInspector: document.getElementById("conveyorInspector"),
     inspectConveyor: document.getElementById("inspectConveyor"),
     inspectConveyorValue: document.getElementById("inspectConveyorValue"),
+    inspectConveyorGrip: document.getElementById("inspectConveyorGrip"),
+    inspectConveyorGripValue: document.getElementById("inspectConveyorGripValue"),
+    sawInspector: document.getElementById("sawInspector"),
+    inspectSawSpeed: document.getElementById("inspectSawSpeed"),
+    inspectSawSpeedValue: document.getElementById("inspectSawSpeedValue"),
+    gunInspector: document.getElementById("gunInspector"),
+    inspectBulletSpeed: document.getElementById("inspectBulletSpeed"),
+    inspectBulletSpeedValue: document.getElementById("inspectBulletSpeedValue"),
+    inspectGunRecoil: document.getElementById("inspectGunRecoil"),
+    inspectGunRecoilValue: document.getElementById("inspectGunRecoilValue"),
+    laserInspector: document.getElementById("laserInspector"),
+    inspectLaserRate: document.getElementById("inspectLaserRate"),
+    inspectLaserRateValue: document.getElementById("inspectLaserRateValue"),
     explosiveInspector: document.getElementById("explosiveInspector"),
     inspectBlastRadius: document.getElementById("inspectBlastRadius"),
     inspectBlastRadiusValue: document.getElementById("inspectBlastRadiusValue"),
@@ -596,7 +626,7 @@
     help: document.getElementById("help")
   };
 
-  ui.help.textContent = "drag to slice \u00b7 X scissors \u00b7 box-select and clone \u00b7 Ctrl+Z undo \u00b7 Space pause \u00b7 S slow \u00b7 I impact";
+  ui.help.textContent = "drag to slice \u00b7 X scissors \u00b7 M modifier \u00b7 Ctrl+Z undo \u00b7 Space pause \u00b7 S slow \u00b7 I impact";
 
   let width = 0;
   let height = 0;
@@ -2075,11 +2105,17 @@
       body.blastForce=760;
       body.fuseDelay=.08;
     } else if (type==="saw") {
-      body.angVel=(Math.random()<.5 ? -1 : 1)*5.5;
+      body.sawMotorSpeed=(Math.random()<.5 ? -1 : 1)*5.5;
+      body.angVel=body.sawMotorSpeed;
     } else if (type==="laser") {
       body.laserCooldown=.04;
+      body.laserInterval=.12;
+    } else if (type==="gun") {
+      body.bulletSpeed=1250;
+      body.gunRecoil=18;
     } else if (type==="conveyor") {
-      body.conveyorSpeed=180;
+      body.conveyorSpeed=650;
+      body.conveyorGrip=1;
       setBodyStatic(body,true);
     }
 
@@ -2563,7 +2599,7 @@
     for (const piece of [outer,inner]) {
       piece.textureRemoved=true;
       piece.ragdollGroup=body.ragdollGroup;
-      for (const key of ["conveyorSpeed","blastRadius","blastForce","fuseDelay","bulletOwner"]) {
+      for (const key of ["conveyorSpeed","conveyorGrip","sawMotorSpeed","laserInterval","bulletSpeed","gunRecoil","blastRadius","blastForce","fuseDelay","bulletOwner"]) {
         if (body[key]!=null) piece[key]=body[key];
       }
     }
@@ -2655,7 +2691,7 @@
     for (const piece of [firstBody,secondBody]) {
       piece.textureRemoved=true;
       piece.ragdollGroup=body.ragdollGroup;
-      for (const key of ["conveyorSpeed","blastRadius","blastForce","fuseDelay","bulletOwner"]) {
+      for (const key of ["conveyorSpeed","conveyorGrip","sawMotorSpeed","laserInterval","bulletSpeed","gunRecoil","blastRadius","blastForce","fuseDelay","bulletOwner"]) {
         if (body[key]!=null) piece[key]=body[key];
       }
     }
@@ -3083,8 +3119,10 @@
     const lever=cross(radius,tangent);
     const denominator=other.invMass+lever*lever*other.invInertia;
     if (denominator<=1e-8) return;
-    const response=1-Math.exp(-16*Math.max(frameStep,.001));
-    const impulseMagnitude=clamp(speedError/denominator*response,-other.mass*180,other.mass*180);
+    const grip=clamp(conveyor.conveyorGrip??1,.1,4);
+    const response=1-Math.exp(-16*grip*Math.max(frameStep,.001));
+    const maxBeltImpulse=other.mass*clamp((180+Math.abs(conveyor.conveyorSpeed||0)*.22)*grip,40,2400);
+    const impulseMagnitude=clamp(speedError/denominator*response,-maxBeltImpulse,maxBeltImpulse);
     const impulse=mul(tangent,impulseMagnitude);
     other.vel=add(other.vel,mul(impulse,other.invMass));
     other.angVel+=cross(radius,impulse)*other.invInertia;
@@ -3290,7 +3328,7 @@
     for (const laser of lasers) {
       laser.laserCooldown=(laser.laserCooldown||0)-dt;
       if (laser.laserCooldown>0) continue;
-      laser.laserCooldown=.12;
+      laser.laserCooldown=clamp(laser.laserInterval??.12,.03,1);
       const {start,end,direction}=laserSegment(laser);
       let beamCuts=0;
       for (const target of [...bodies]) {
@@ -3334,11 +3372,12 @@
         add(add(muzzle,mul(direction,halfLength)),mul(normal,halfWidth)),
         add(add(muzzle,mul(direction,-halfLength)),mul(normal,halfWidth))
       ];
+      const bulletSpeed=clamp(gun.bulletSpeed??1250,200,3500);
       const bullet=bodyFromWorldVertices(vertices,{
         color:"#e0b94e",
         shapeType:"bullet",
         material:materialFor("bullet"),
-        vel:add(velocityAtPoint(gun,muzzle),mul(direction,1250)),
+        vel:add(velocityAtPoint(gun,muzzle),mul(direction,bulletSpeed)),
         impactGrace:.2,
         impactGeneration:3
       });
@@ -3346,7 +3385,8 @@
       bullet.bulletLife=1.8;
       bodies.push(bullet);
       if (!gun.isStatic) {
-        gun.vel=sub(gun.vel,mul(direction,Math.min(75,18/Math.max(gun.mass,.2))));
+        const recoil=clamp(gun.gunRecoil??18,0,100);
+        gun.vel=sub(gun.vel,mul(direction,Math.min(220,recoil/Math.max(gun.mass,.2))));
         gun.sleeping=false;
         gun.sleepTimer=0;
       }
@@ -4124,6 +4164,11 @@
         body.supportMaxX = -Infinity;
       }
       for (const body of bodies) {
+        if (!body.isStatic && body.shapeType==="saw" && Number.isFinite(body.sawMotorSpeed)) {
+          body.sleeping=false;
+          body.sleepTimer=0;
+          body.angVel+=(body.sawMotorSpeed-body.angVel)*(1-Math.exp(-9*step));
+        }
         if (!body.sleeping && !body.isStatic) {
           body.vel.y += gravity*body.material.gravityScale*step;
           body.vel.x += wind*step;
@@ -5783,9 +5828,11 @@ if ("ResizeObserver" in window) {
   function updateSelectionStatus() {
     for (const body of [...selectedBodies]) if (!bodies.includes(body)) selectedBodies.delete(body);
     const count=selectedBodies.size;
-    ui.selectionStatus.textContent=count
-      ? `${count} selected · drag one to move${count>1 && !paused ? " · pause to weld" : ""}`
-      : "Drag a box around objects.";
+    ui.selectionStatus.textContent=mode==="modify"
+      ? count ? "Editing selected object." : "Click an object to modify its properties."
+      : count
+        ? `${count} selected · drag one to move${count>1 && !paused ? " · pause to weld" : ""}`
+        : "Drag a box around objects.";
     ui.cloneSelection.disabled=count===0;
     ui.deleteSelection.disabled=count===0;
     ui.weldSelectionButton.disabled=count<2 || !paused;
@@ -5821,7 +5868,25 @@ if ("ResizeObserver" in window) {
     ui.inspectColor.value=colorToHex(body.color);
     const conveyor=body.shapeType==="conveyor";
     ui.conveyorInspector.classList.toggle("visible",conveyor);
-    if (conveyor) setRange(ui.inspectConveyor,ui.inspectConveyorValue,body.conveyorSpeed??180,0);
+    if (conveyor) {
+      setRange(ui.inspectConveyor,ui.inspectConveyorValue,body.conveyorSpeed??650,0);
+      setRange(ui.inspectConveyorGrip,ui.inspectConveyorGripValue,body.conveyorGrip??1,1);
+    }
+    const saw=body.shapeType==="saw";
+    ui.sawInspector.classList.toggle("visible",saw);
+    if (saw) setRange(ui.inspectSawSpeed,ui.inspectSawSpeedValue,body.sawMotorSpeed??body.angVel??5.5,1);
+    const gun=body.shapeType==="gun";
+    ui.gunInspector.classList.toggle("visible",gun);
+    if (gun) {
+      setRange(ui.inspectBulletSpeed,ui.inspectBulletSpeedValue,body.bulletSpeed??1250,0);
+      setRange(ui.inspectGunRecoil,ui.inspectGunRecoilValue,body.gunRecoil??18,0);
+    }
+    const laser=body.shapeType==="laser";
+    ui.laserInspector.classList.toggle("visible",laser);
+    if (laser) {
+      setRange(ui.inspectLaserRate,ui.inspectLaserRateValue,body.laserInterval??.12,2);
+      ui.inspectLaserRateValue.textContent=Number(ui.inspectLaserRate.value).toFixed(2)+"s";
+    }
     const explosive=body.shapeType==="explosive";
     ui.explosiveInspector.classList.toggle("visible",explosive);
     if (explosive) {
@@ -5871,6 +5936,13 @@ if ("ResizeObserver" in window) {
     else if (target===ui.inspectDurability) body.material.impactStrength=Number(target.value);
     else if (target===ui.inspectColor) body.color=target.value;
     else if (target===ui.inspectConveyor) body.conveyorSpeed=Number(target.value);
+    else if (target===ui.inspectConveyorGrip) body.conveyorGrip=Number(target.value);
+    else if (target===ui.inspectSawSpeed) {
+      body.sawMotorSpeed=Number(target.value);
+      body.angVel=body.sawMotorSpeed;
+    } else if (target===ui.inspectBulletSpeed) body.bulletSpeed=Number(target.value);
+    else if (target===ui.inspectGunRecoil) body.gunRecoil=Number(target.value);
+    else if (target===ui.inspectLaserRate) body.laserInterval=Number(target.value);
     else if (target===ui.inspectBlastRadius) body.blastRadius=Number(target.value);
     else if (target===ui.inspectBlastForce) body.blastForce=Number(target.value);
     else if (target===ui.inspectFuse) body.fuseDelay=Number(target.value);
@@ -6071,6 +6143,7 @@ if ("ResizeObserver" in window) {
   const inspectorControls=[
     ui.inspectMaterial,ui.inspectMass,ui.inspectGravity,ui.inspectFriction,
     ui.inspectBounce,ui.inspectDurability,ui.inspectColor,ui.inspectConveyor,
+    ui.inspectConveyorGrip,ui.inspectSawSpeed,ui.inspectBulletSpeed,ui.inspectGunRecoil,ui.inspectLaserRate,
     ui.inspectBlastRadius,ui.inspectBlastForce,ui.inspectFuse
   ];
   for (const control of inspectorControls) {
@@ -6158,8 +6231,9 @@ function setMode(nextMode) {
     });
 
     canvas.style.cursor = (!paused && ((mode==="spawn" && selectedSpawnType==="compound") || mode==="build")) ||
-      (paused && !["slice","scissors","spawn","delete","build","drag","select"].includes(mode)) ? "not-allowed" :
+      (paused && !["slice","scissors","spawn","delete","build","drag","select","modify"].includes(mode)) ? "not-allowed" :
       mode === "drag" ? "grab" :
+      mode === "modify" ? "pointer" :
       mode === "select" ? "default" :
       mode === "spawn" ? "copy" :
       mode === "delete" ? "not-allowed" :
@@ -6167,9 +6241,9 @@ function setMode(nextMode) {
 
     ui.spawnPanel.classList.toggle("visible", mode === "spawn");
     ui.buildControls.classList.toggle("visible",mode==="build");
-    ui.selectionControls.classList.toggle("visible",mode==="select");
+    ui.selectionControls.classList.toggle("visible",mode==="select" || mode==="modify");
     if (mode==="build") updateBuildStatus();
-    if (mode==="select") updateSelectionStatus();
+    if (mode==="select" || mode==="modify") updateSelectionStatus();
 
     if (mode === "spawn" && !ui.spawnPanel.dataset.positioned) {
       const rect = ui.spawnPanel.getBoundingClientRect();
@@ -6188,7 +6262,7 @@ function setMode(nextMode) {
     const p = pointerPosition(event);
     pointer.x = p.x;
     pointer.y = p.y;
-    const pausedEditMode = mode==="slice" || mode==="scissors" || mode==="spawn" || mode==="delete" || mode==="build" || mode==="drag" || mode==="select";
+    const pausedEditMode = mode==="slice" || mode==="scissors" || mode==="spawn" || mode==="delete" || mode==="build" || mode==="drag" || mode==="select" || mode==="modify";
     if (paused && !pausedEditMode) return;
     historyGestureRecorded=false;
     pointer.down = true;
@@ -6209,6 +6283,12 @@ function setMode(nextMode) {
     } else if (mode==="delete") {
       deleteTrailPoint={...p};
       deleteAtPoint(p);
+    } else if (mode==="modify") {
+      selectedBodies.clear();
+      const body=getBodyAt(p);
+      if (body) selectedBodies.add(body);
+      inspectorHistoryRecorded=false;
+      updateSelectionStatus();
     } else if (mode==="select") {
       const body=getBodyAt(p);
       if (body && selectedBodies.has(body)) {
@@ -6311,7 +6391,7 @@ function setMode(nextMode) {
     pointer.y = p.y;
     pointer.down = false;
     deleteTrailPoint=null;
-    const pausedEditMode = mode==="slice" || mode==="scissors" || mode==="spawn" || mode==="delete" || mode==="build" || mode==="drag" || mode==="select";
+    const pausedEditMode = mode==="slice" || mode==="scissors" || mode==="spawn" || mode==="delete" || mode==="build" || mode==="drag" || mode==="select" || mode==="modify";
     if (paused && !pausedEditMode) return;
 
     if (mode==="slice" && sliceStart && length(sub(p,sliceStart))>10) {
@@ -6516,6 +6596,9 @@ function setMode(nextMode) {
     } else if (event.key.toLowerCase()==="x") {
       if (typing || event.repeat) return;
       setMode("scissors");
+    } else if (event.key.toLowerCase()==="m") {
+      if (typing || event.repeat) return;
+      setMode("modify");
     } else if (event.key==="1") {
       if (typing) return;
       setMode("slice");
@@ -6534,6 +6617,9 @@ function setMode(nextMode) {
     } else if (event.key==="6") {
       if (typing) return;
       setMode("build");
+    } else if (event.key==="7") {
+      if (typing) return;
+      setMode("modify");
     } else if (event.key==="Enter" && mode==="build" && ui.buildTool.value==="weld") {
       if (typing) return;
       weldSelectedBodies();
