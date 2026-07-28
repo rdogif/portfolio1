@@ -430,6 +430,8 @@
       <option value="rope">rope</option>
       <option value="spring">spring</option>
       <option value="chain">chain</option>
+      <option value="piston">powered piston</option>
+      <option value="telescoping">telescoping rod</option>
       <option value="anchor">static anchor</option>
       <option value="unbreakable">unbreakable object</option>
       <option value="weld">weld materials</option>
@@ -439,6 +441,10 @@
       aria-label="Constraint break strength">
     <label id="motorSpeedLabel"><span>motor speed</span><span id="motorSpeedValue">2.5</span></label>
     <input id="motorSpeed" type="range" min="-8" max="8" step="0.5" value="2.5">
+    <label id="actuatorTravelLabel"><span>travel</span><span id="actuatorTravelValue">140</span></label>
+    <input id="actuatorTravel" type="range" min="20" max="400" step="10" value="140">
+    <label id="actuatorSpeedLabel"><span>extension speed</span><span id="actuatorSpeedValue">100</span></label>
+    <input id="actuatorSpeed" type="range" min="-300" max="300" step="10" value="100">
     <button id="toggleConstraints" type="button" aria-pressed="false">Hide constraint labels</button>
     <button id="finishWeld" type="button">Weld selected</button>
     <div id="buildStatus">Pause, then drag between objects.</div>
@@ -501,6 +507,20 @@
         <input id="inspectFuse" type="range" min="0" max="5" step="0.05" value="0.08">
         <button id="detonateSelected" type="button" class="wide">Detonate now</button>
       </div>
+      <div id="balloonInspector" class="inspector-special">
+        <label><span>pressure</span><span id="inspectBalloonPressureValue">1</span></label>
+        <input id="inspectBalloonPressure" type="range" min="0.25" max="3" step="0.05" value="1">
+      </div>
+      <div id="gravityFieldInspector" class="inspector-special">
+        <label><span>field strength</span><span id="inspectFieldStrengthValue">900</span></label>
+        <input id="inspectFieldStrength" type="range" min="-3000" max="3000" step="50" value="900">
+        <label><span>field radius</span><span id="inspectFieldRadiusValue">260</span></label>
+        <input id="inspectFieldRadius" type="range" min="80" max="700" step="10" value="260">
+      </div>
+      <div id="memoryInspector" class="inspector-special">
+        <label><span>memory recovery</span><span id="inspectMemoryRateValue">1.2</span></label>
+        <input id="inspectMemoryRate" type="range" min="0" max="6" step="0.1" value="1.2">
+      </div>
     </div>
   </div>
 
@@ -512,6 +532,7 @@
     <button id="pause" type="button" aria-pressed="false">Pause</button>
     <button id="slow" type="button" aria-pressed="false" title="S">slow motion</button>
     <button id="impact" class="wide" type="button" aria-pressed="false" title="I">Impact: off</button>
+    <button id="sound" class="wide" type="button" aria-pressed="true">Sound: on</button>
     <button id="fireGuns" class="wide" type="button" title="F" style="display:none">Fire guns</button>
   </div>
 </section>
@@ -575,6 +596,12 @@
     motorSpeed: document.getElementById("motorSpeed"),
     motorSpeedValue: document.getElementById("motorSpeedValue"),
     motorSpeedLabel: document.getElementById("motorSpeedLabel"),
+    actuatorTravel: document.getElementById("actuatorTravel"),
+    actuatorTravelValue: document.getElementById("actuatorTravelValue"),
+    actuatorTravelLabel: document.getElementById("actuatorTravelLabel"),
+    actuatorSpeed: document.getElementById("actuatorSpeed"),
+    actuatorSpeedValue: document.getElementById("actuatorSpeedValue"),
+    actuatorSpeedLabel: document.getElementById("actuatorSpeedLabel"),
     toggleConstraints: document.getElementById("toggleConstraints"),
     buildStatus: document.getElementById("buildStatus"),
     selectionControls: document.getElementById("selectionControls"),
@@ -620,9 +647,21 @@
     inspectFuse: document.getElementById("inspectFuse"),
     inspectFuseValue: document.getElementById("inspectFuseValue"),
     detonateSelected: document.getElementById("detonateSelected"),
+    balloonInspector: document.getElementById("balloonInspector"),
+    inspectBalloonPressure: document.getElementById("inspectBalloonPressure"),
+    inspectBalloonPressureValue: document.getElementById("inspectBalloonPressureValue"),
+    gravityFieldInspector: document.getElementById("gravityFieldInspector"),
+    inspectFieldStrength: document.getElementById("inspectFieldStrength"),
+    inspectFieldStrengthValue: document.getElementById("inspectFieldStrengthValue"),
+    inspectFieldRadius: document.getElementById("inspectFieldRadius"),
+    inspectFieldRadiusValue: document.getElementById("inspectFieldRadiusValue"),
+    memoryInspector: document.getElementById("memoryInspector"),
+    inspectMemoryRate: document.getElementById("inspectMemoryRate"),
+    inspectMemoryRateValue: document.getElementById("inspectMemoryRateValue"),
     undo: document.getElementById("undo"),
     redo: document.getElementById("redo"),
     fireGuns: document.getElementById("fireGuns"),
+    sound: document.getElementById("sound"),
     help: document.getElementById("help")
   };
 
@@ -638,6 +677,8 @@
   let paused = false;
   let slowMotion = false;
   let impactMode = false;
+  let soundEnabled = true;
+  let audioContext = null;
   let cuts = 0;
   let idCounter = 1;
   let sliceStart = null;
@@ -674,6 +715,8 @@
   const sawCutQueue = new Map();
   const bulletCutQueue = new Map();
   const deformationQueue = new Map();
+  const balloonPopQueue = new Map();
+  const impactSoundCooldown = new Map();
   const MAX_DYNAMIC_BODIES = 140;
 
   const pointer = { x: 0, y: 0, down: false };
@@ -736,7 +779,7 @@
     explosions=[];
     heldBody=null; heldLocalPoint=null; sliceStart=null; scissorStart=null; drawSpawnStart=null;
     deleteTrailPoint=null; buildStart=null; selectionStart=null; selectionCurrent=null; selectionMoveLast=null;
-    impactBreakQueue.clear(); sawCutQueue.clear(); bulletCutQueue.clear(); deformationQueue.clear();
+    impactBreakQueue.clear(); sawCutQueue.clear(); bulletCutQueue.clear(); deformationQueue.clear(); balloonPopQueue.clear();
     stickyPairLastAttach.clear();
     previousTime=performance.now();
     updateSelectionStatus();
@@ -992,7 +1035,8 @@
 
   const isDraggedSpawnType = type =>
     type === "line" || type === "rectangle" || type === "compound" ||
-    type === "deformableline" || type === "deformablerectangle" || MATERIAL_SAMPLE_TYPES.has(type);
+    type === "deformableline" || type === "deformablerectangle" ||
+    type === "memoryrectangle" || type === "hybridrectangle" || MATERIAL_SAMPLE_TYPES.has(type);
 
   const MATERIAL_SAMPLE_COLORS = {
     materialglass:"rgba(137,211,230,.58)",
@@ -1355,6 +1399,14 @@
         {x:x-r,y:y-r},{x:x+r,y:y-r},
         {x:x+r,y:y+r},{x:x-r,y:y+r}
       ];
+    } else if (type === "onewayplatform") {
+      const halfHeight=Math.max(7,r*.2);
+      vertices=[
+        {x:x-r*1.65,y:y-halfHeight},{x:x+r*1.65,y:y-halfHeight},
+        {x:x+r*1.65,y:y+halfHeight},{x:x-r*1.65,y:y+halfHeight}
+      ];
+    } else if (type === "balloon" || type === "gravityfield") {
+      vertices=regularPolygon(x,y,r,type==="balloon" ? 28 : 20,-Math.PI/2);
     } else if (type === "saw") {
       vertices=regularPolygon(x,y,r,28,0);
     } else if (type === "circle") {
@@ -2071,6 +2123,9 @@
       conveyor:"#59636b",
       laser:"#4f565c",
       gun:"#45484c"
+      ,onewayplatform:"#557f99"
+      ,balloon:"#df6686"
+      ,gravityfield:"#6674c9"
     };
 
     const amongUsColors=[
@@ -2116,6 +2171,20 @@
     } else if (type==="conveyor") {
       body.conveyorSpeed=650;
       body.conveyorGrip=1;
+      setBodyStatic(body,true);
+    } else if (type==="onewayplatform") {
+      setBodyStatic(body,true);
+    } else if (type==="balloon") {
+      configureDeformableBody(body,.38);
+      body.shapeMemory=true;
+      body.memoryRate=2.4;
+      body.balloonPressure=1;
+      body.material.gravityScale=.22;
+      body.material.restitution=.62;
+      body.material.impactStrength=520;
+    } else if (type==="gravityfield") {
+      body.fieldStrength=900;
+      body.fieldRadius=Math.max(220,r*6);
       setBodyStatic(body,true);
     }
 
@@ -2754,6 +2823,12 @@
       completedCuts++;
     }
     finalPieces.push(...pending);
+    if (body.sliceableDeformable) {
+      for (const piece of finalPieces) {
+        configureDeformableBody(piece,body.deformLimit||.5);
+        piece.sliceableDeformable=true;
+      }
+    }
     const index=bodies.indexOf(body);
     if (index>=0) bodies.splice(index,1,...finalPieces);
     cuts+=completedCuts;
@@ -2878,7 +2953,7 @@
   }
 
   function sliceBody(body,a,b) {
-    if (body.unbreakable || body.deformable) return null;
+    if (body.unbreakable || (body.deformable && !body.sliceableDeformable)) return null;
     if (body.isCompound) return sliceCompoundBody(body,a,b);
     const vertices = getWorldVertices(body);
 
@@ -2960,6 +3035,70 @@
     return body;
   }
 
+  function rebuildDeformedGeometry(body) {
+    body.parts=collisionParts(body.verts);
+    body.radius=Math.max(...body.verts.map(length));
+    body.collisionThickness=polygonMinimumThickness(body.verts);
+    const area=Math.max(12,Math.abs(polygonArea(body.verts)));
+    body.inertia=Math.max(.05,body.mass*polygonPolarMoment(body.verts)/area);
+    body.invInertia=body.isStatic ? 0 : 1/body.inertia;
+  }
+
+  function applyShapeMemory(body,dt) {
+    if (!body.shapeMemory || !body.deformBaseVerts ||
+        body.deformBaseVerts.length!==body.verts.length || body.deformAmount<.001) return;
+    const blend=1-Math.exp(-Math.max(0,body.memoryRate??1.2)*dt);
+    if (blend<=0) return;
+    const next=body.verts.map((point,index)=>
+      add(point,mul(sub(body.deformBaseVerts[index],point),blend)));
+    const shift=centroid(next);
+    body.verts=next.map(point=>sub(point,shift));
+    body.deformBaseVerts=body.deformBaseVerts.map(point=>sub(point,shift));
+    body.pos=add(body.pos,rotate(shift,body.angle));
+    body.deformAmount*=1-blend;
+    rebuildDeformedGeometry(body);
+  }
+
+  function applyGravityFields(step) {
+    const fields=bodies.filter(body=>body.shapeType==="gravityfield");
+    if (!fields.length) return;
+    for (const field of fields) {
+      const radius=Math.max(40,field.fieldRadius||260);
+      const strength=field.fieldStrength||0;
+      for (const body of bodies) {
+        if (body===field || body.isStatic) continue;
+        const delta=sub(field.pos,body.pos);
+        const distance=length(delta);
+        if (distance<2 || distance>=radius) continue;
+        const falloff=Math.pow(1-distance/radius,1.35);
+        body.vel=add(body.vel,mul(delta,strength*falloff*step/distance));
+        if (Math.abs(strength)*falloff>20) {
+          body.sleeping=false;
+          body.sleepTimer=0;
+        }
+      }
+    }
+  }
+
+  function queueBalloonPop(body,contact,impactSpeed) {
+    if (body?.shapeType!=="balloon" || body.unbreakable) return;
+    const pressure=Math.max(.25,body.balloonPressure||1);
+    if (impactSpeed<650/Math.sqrt(pressure)) return;
+    balloonPopQueue.set(body.id,{body,contact:{...contact}});
+  }
+
+  function processBalloonPops() {
+    for (const {body,contact} of balloonPopQueue.values()) {
+      if (!bodies.includes(body)) continue;
+      constraints=constraints.filter(constraint=>constraint.a!==body && constraint.b!==body);
+      selectedBodies.delete(body);
+      bodies=bodies.filter(candidate=>candidate!==body);
+      explosions.push({x:contact.x,y:contact.y,radius:Math.max(24,body.radius*.8),age:0});
+      flash=Math.max(flash,.08);
+    }
+    balloonPopQueue.clear();
+  }
+
   function isStableDeformedPolygon(vertices,minimumArea) {
     if (Math.abs(polygonArea(vertices))<minimumArea) return false;
     for (let i=0;i<vertices.length;i++) {
@@ -3033,12 +3172,7 @@
     body.deformBaseVerts=base.map(point=>sub(point,localShift));
     body.pos=add(body.pos,rotate(localShift,body.angle));
     body.verts=nextVerts;
-    body.parts=collisionParts(body.verts);
-    const area=Math.max(12,Math.abs(polygonArea(body.verts)));
-    body.radius=Math.max(...body.verts.map(length));
-    body.collisionThickness=polygonMinimumThickness(body.verts);
-    body.inertia=Math.max(.05,body.mass*polygonPolarMoment(body.verts)/area);
-    body.invInertia=body.isStatic ? 0 : 1/body.inertia;
+    rebuildDeformedGeometry(body);
     // Plastic reshaping changes inertia; preserve angular momentum without
     // allowing an extreme one-frame angular-velocity spike.
     if (!body.isStatic && previousInertia>0) {
@@ -3494,11 +3628,43 @@
     explosions=explosions.filter(explosion=>explosion.age<.45);
   }
 
+  function deformBodyFromSlice(body,a,b) {
+    if (!body.deformable || body.sliceableDeformable || body.unbreakable) return false;
+    const vertices=getWorldVertices(body);
+    if (!segmentActuallyCrossesPolygon(a,b,vertices)) return false;
+    const intervals=scissorSegmentsInsidePolygon(a,b,vertices);
+    if (!intervals.length) return false;
+
+    const bladeNormal=normalize(perpendicular(sub(b,a)));
+    let changed=false;
+    for (const interval of intervals) {
+      const midpoint=mul(add(interval.a,interval.b),.5);
+      // Push the swipe crease inward, then distribute it along the finite
+      // portion of the blade that actually passed through this body.
+      const normal=dot(sub(body.pos,midpoint),bladeNormal)<0
+        ? mul(bladeNormal,-1)
+        : bladeNormal;
+      // Entry and exit points carry most of the visible bend; the midpoint
+      // adds a softer crease on thin deformables.
+      for (const amount of [.02,.5,.98]) {
+        const contact=add(interval.a,mul(sub(interval.b,interval.a),amount));
+        changed=applyDeformation(body,normal,980,contact) || changed;
+      }
+    }
+    return changed;
+  }
+
   function performSlice(a,b) {
     const nextBodies = [];
     let slicedSomething = false;
 
     for (const body of bodies) {
+      if (deformBodyFromSlice(body,a,b)) {
+        nextBodies.push(body);
+        cuts++;
+        slicedSomething=true;
+        continue;
+      }
       if (body.shapeType==="explosive" && segmentActuallyCrossesPolygon(a,b,getWorldVertices(body))) {
         armExplosive(body,mul(add(a,b),.5),.035);
         nextBodies.push(body);
@@ -3507,6 +3673,12 @@
       }
       const pieces = sliceBody(body,a,b);
       if (pieces) {
+        if (body.sliceableDeformable) {
+          for (const piece of pieces) {
+            configureDeformableBody(piece,body.deformLimit||.5);
+            piece.sliceableDeformable=true;
+          }
+        }
         reattachConstraints(body,pieces);
         nextBodies.push(...pieces);
         cuts++;
@@ -3672,6 +3844,53 @@
     }
 
     return best;
+  }
+
+  function shouldIgnoreOneWayCollision(a,b,collision) {
+    const platform=a.shapeType==="onewayplatform" ? a :
+      b.shapeType==="onewayplatform" ? b : null;
+    if (!platform) return false;
+    const other=platform===a ? b : a;
+    const up=rotate({x:0,y:-1},platform.angle);
+    const side=dot(sub(other.pos,platform.pos),up);
+    const relativeVelocity=dot(
+      sub(velocityAtPoint(other,collision.contact),velocityAtPoint(platform,collision.contact)),up);
+    const margin=Math.max(3,Math.min(other.radius*.18,16));
+    return side < -margin || relativeVelocity > 55;
+  }
+
+  function ensureAudioContext() {
+    if (!soundEnabled) return null;
+    if (!audioContext) {
+      const AudioContextClass=window.AudioContext||window.webkitAudioContext;
+      if (!AudioContextClass) return null;
+      audioContext=new AudioContextClass();
+    }
+    if (audioContext.state==="suspended") audioContext.resume().catch(()=>{});
+    return audioContext;
+  }
+
+  function playImpactSound(a,b,impactSpeed) {
+    if (!soundEnabled || impactSpeed<70) return;
+    const key=a.id<b.id ? `${a.id}:${b.id}` : `${b.id}:${a.id}`;
+    const now=performance.now();
+    if (now-(impactSoundCooldown.get(key)||0)<75) return;
+    impactSoundCooldown.set(key,now);
+    if (impactSoundCooldown.size>400) impactSoundCooldown.clear();
+    const audio=ensureAudioContext();
+    if (!audio) return;
+    const gain=audio.createGain();
+    const oscillator=audio.createOscillator();
+    const density=((a.material?.density||1)+(b.material?.density||1))*.5;
+    const bounciness=((a.material?.restitution||0)+(b.material?.restitution||0))*.5;
+    oscillator.type=density>2.2 ? "square" : bounciness>.45 ? "sine" : "triangle";
+    oscillator.frequency.value=clamp(230/Math.sqrt(density)+impactSpeed*.035,55,520);
+    const volume=clamp((impactSpeed-60)/1600,.006,.095);
+    gain.gain.setValueAtTime(volume,audio.currentTime);
+    gain.gain.exponentialRampToValueAtTime(.0001,audio.currentTime+.065);
+    oscillator.connect(gain).connect(audio.destination);
+    oscillator.start();
+    oscillator.stop(audio.currentTime+.07);
   }
 
   function applyImpulse(a,b,collision) {
@@ -3934,6 +4153,18 @@
     body.sleepTimer=0;
   }
 
+  function advanceActuator(constraint,step) {
+    if (constraint.kind!=="piston" && constraint.kind!=="telescoping") return;
+    const minimum=Math.min(constraint.minLength,constraint.maxLength);
+    const maximum=Math.max(constraint.minLength,constraint.maxLength);
+    const speed=constraint.actuatorSpeed||0;
+    constraint.restLength=clamp(constraint.restLength+speed*(constraint.actuatorDirection||1)*step,minimum,maximum);
+    if (constraint.kind==="piston") {
+      if (constraint.restLength>=maximum-.01) constraint.actuatorDirection=-1;
+      else if (constraint.restLength<=minimum+.01) constraint.actuatorDirection=1;
+    }
+  }
+
   function solveConstraint(constraint,step) {
     if (constraint.invalid) return;
     const a=constraint.a;
@@ -3945,12 +4176,13 @@
     const distance=length(delta);
     const axis=distance>1e-6 ? mul(delta,1/distance) : {x:1,y:0};
     const hingeLike=constraint.kind==="hinge" || constraint.kind==="motor" || constraint.kind==="sticky";
+    const actuator=constraint.kind==="piston" || constraint.kind==="telescoping";
     const error=hingeLike
       ? distance
-      : constraint.kind==="spring"
+      : constraint.kind==="spring" || actuator
         ? distance-constraint.restLength
         : Math.max(0,distance-constraint.restLength);
-    if (!hingeLike && constraint.kind!=="spring" && error<=.02) return;
+    if (!hingeLike && constraint.kind!=="spring" && !actuator && error<=.02) return;
 
     const ra=sub(pointA,a.pos);
     const rb=b ? sub(pointB,b.pos) : {x:0,y:0};
@@ -3965,10 +4197,11 @@
 
     const response=constraint.kind==="spring"
       ? 1-Math.exp(-10*step)
+      : actuator ? 1-Math.exp(-24*step)
       : 1;
     const bias=constraint.kind==="spring"
       ? error*18
-      : error*(hingeLike ? .32 : .20)/Math.max(step,.001);
+      : error*(hingeLike ? .32 : actuator ? .42 : .20)/Math.max(step,.001);
     const rawImpulse=(relativeSpeed+bias)/inverseMass*response;
     // Strength is measured as acceleration at the joint, so the same setting
     // behaves consistently for light and heavy shapes.
@@ -3984,7 +4217,7 @@
       return;
     }
     let impulseMagnitude=rawImpulse;
-    const maxImpulse=Math.max(.12,(a.mass+(b?.mass||0))*500*step);
+    const maxImpulse=Math.max(.12,(a.mass+(b?.mass||0))*(actuator ? 1200 : 500)*step);
     impulseMagnitude=clamp(impulseMagnitude,-maxImpulse,maxImpulse);
     const impulse=mul(axis,impulseMagnitude);
 
@@ -4137,6 +4370,7 @@
     sawCutQueue.clear();
     bulletCutQueue.clear();
     deformationQueue.clear();
+    balloonPopQueue.clear();
 
     // Real frame time is clamped first; slow motion only scales simulation time.
     const clampedRealDt = clamp(realDt,0,.05);
@@ -4145,7 +4379,10 @@
     if (stickyPairLastAttach.size>500) {
       for (const [key,time] of stickyPairLastAttach) if (physicsTime-time>5) stickyPairLastAttach.delete(key);
     }
-    for (const body of bodies) body.deformCooldown=Math.max(0,(body.deformCooldown||0)-dt);
+    for (const body of bodies) {
+      body.deformCooldown=Math.max(0,(body.deformCooldown||0)-dt);
+      applyShapeMemory(body,dt);
+    }
 
     const fastestBodySpeed = bodies.reduce((fastest,body) =>
       Math.max(fastest,Math.hypot(body.vel.x,body.vel.y)),0);
@@ -4158,6 +4395,7 @@
     const gravity = 900;
 
     for (let s=0;s<substeps;s++) {
+      applyGravityFields(step);
       for (const body of bodies) {
         body.supported = false;
         body.supportMinX = Infinity;
@@ -4171,6 +4409,10 @@
         }
         if (!body.sleeping && !body.isStatic) {
           body.vel.y += gravity*body.material.gravityScale*step;
+          if (body.shapeType==="balloon") {
+            const pressure=Math.max(.25,body.balloonPressure||1);
+            body.vel.y-=gravity*clamp((pressure-.2)*.48,0,1.25)*step;
+          }
           body.vel.x += wind*step;
 
           const linearDamping = Math.exp(-body.material.airDrag*step);
@@ -4230,6 +4472,7 @@
             const a = bodies[i];
             const b = bodies[j];
             if (a.ragdollGroup && a.ragdollGroup===b.ragdollGroup) continue;
+            if (a.shapeType==="gravityfield" || b.shapeType==="gravityfield") continue;
 
             const broadRadiusA=a.radius*(a.deformable ? 1.4 : 1);
             const broadRadiusB=b.radius*(b.deformable ? 1.4 : 1);
@@ -4237,10 +4480,14 @@
 
             const collision = findCollision(a,b);
             if (!collision) continue;
+            if (shouldIgnoreOneWayCollision(a,b,collision)) continue;
             foundCollision = true;
 
             const relative = sub(velocityAtPoint(b,collision.contact),velocityAtPoint(a,collision.contact));
             const impactSpeed = Math.max(0,-dot(relative,collision.normal));
+            if (iteration===0) playImpactSound(a,b,impactSpeed);
+            queueBalloonPop(a,collision.contact,impactSpeed);
+            queueBalloonPop(b,collision.contact,impactSpeed);
             tryCreateStickyBond(a,b,collision.contact,impactSpeed);
             applyConveyorContact(a,b,collision,dt);
             if (a.shapeType==="saw") queueSawCut(a,b,collision.contact);
@@ -4280,6 +4527,7 @@
       }
 
       for (const constraint of constraints) constraint.age=(constraint.age||0)+step;
+      for (const constraint of constraints) advanceActuator(constraint,step);
       for (let iteration=0;iteration<8;iteration++) {
         for (const constraint of constraints) solveConstraint(constraint,step);
       }
@@ -4327,6 +4575,7 @@
     processImpactBreaks();
     updateExplosives(dt);
     processDeformations();
+    processBalloonPops();
     for (const body of bodies) {
       if (body.shapeType==="bullet") body.bulletLife=(body.bulletLife??1.8)-dt;
       if (body.explosionDebris) body.debrisLife=(body.debrisLife??1.2)-dt;
@@ -4838,6 +5087,35 @@
   }
 
   function drawBodyEffects(context,body) {
+    if (body.shapeType==="gravityfield") {
+      context.save();
+      context.strokeStyle=body.fieldStrength>=0 ? "rgba(72,88,190,.28)" : "rgba(196,73,69,.28)";
+      context.fillStyle=body.fieldStrength>=0 ? "rgba(90,110,220,.06)" : "rgba(220,90,82,.06)";
+      context.lineWidth=2;
+      context.beginPath(); context.arc(body.pos.x,body.pos.y,body.fieldRadius||260,0,Math.PI*2);
+      context.fill(); context.stroke();
+      context.fillStyle="#fff"; context.strokeStyle="#222";
+      context.font=`bold ${Math.max(14,body.radius*.5)}px system-ui`;
+      context.textAlign="center"; context.textBaseline="middle";
+      context.fillText(body.fieldStrength>=0 ? "+" : "−",body.pos.x,body.pos.y);
+      context.restore();
+    }
+    if (body.shapeType==="onewayplatform") {
+      context.save(); context.translate(body.pos.x,body.pos.y); context.rotate(body.angle);
+      context.strokeStyle="rgba(255,255,255,.8)"; context.lineWidth=2;
+      for (let x=-body.radius*.65;x<=body.radius*.65;x+=28) {
+        context.beginPath(); context.moveTo(x+6,4); context.lineTo(x,-4); context.lineTo(x-6,4); context.stroke();
+      }
+      context.restore();
+    }
+    if (body.shapeType==="balloon") {
+      context.save(); context.translate(body.pos.x,body.pos.y); context.rotate(body.angle);
+      context.fillStyle=body.color; context.strokeStyle="#333"; context.lineWidth=2;
+      context.beginPath();
+      context.moveTo(-5,body.radius*.82); context.lineTo(0,body.radius+9); context.lineTo(5,body.radius*.82);
+      context.closePath(); context.fill(); context.stroke();
+      context.restore();
+    }
     if (body.isStatic && constraintsVisible) {
       context.save(); context.translate(body.pos.x,body.pos.y); context.rotate(body.angle);
       context.fillStyle="#fff"; context.strokeStyle="#111"; context.lineWidth=2;
@@ -5063,7 +5341,9 @@
     ctx.strokeStyle="#111";
     ctx.fillStyle=MATERIAL_SAMPLE_TYPES.has(selectedSpawnType)
       ? MATERIAL_SAMPLE_COLORS[selectedSpawnType]
-      : selectedSpawnType.startsWith("deformable") ? "rgba(115,131,144,.38)"
+      : selectedSpawnType.startsWith("deformable") ||
+        selectedSpawnType==="memoryrectangle" || selectedSpawnType==="hybridrectangle"
+        ? "rgba(115,131,144,.38)"
       : "rgba(80,80,80,.16)";
     ctx.globalAlpha=MATERIAL_SAMPLE_TYPES.has(selectedSpawnType) ? .55 : 1;
     ctx.setLineDash([7,5]);
@@ -5072,7 +5352,9 @@
       ctx.lineCap="round";
       ctx.lineWidth=Math.max(4,Number(ui.sizeSlider.value)||12);
       ctx.beginPath(); ctx.moveTo(drawSpawnStart.x,drawSpawnStart.y); ctx.lineTo(pointer.x,pointer.y); ctx.stroke();
-    } else if (selectedSpawnType==="rectangle" || selectedSpawnType==="deformablerectangle" || MATERIAL_SAMPLE_TYPES.has(selectedSpawnType)) {
+    } else if (selectedSpawnType==="rectangle" || selectedSpawnType==="deformablerectangle" ||
+      selectedSpawnType==="memoryrectangle" || selectedSpawnType==="hybridrectangle" ||
+      MATERIAL_SAMPLE_TYPES.has(selectedSpawnType)) {
       const x=Math.min(drawSpawnStart.x,pointer.x), y=Math.min(drawSpawnStart.y,pointer.y);
       const w=Math.abs(pointer.x-drawSpawnStart.x), h=Math.abs(pointer.y-drawSpawnStart.y);
       ctx.fillRect(x,y,w,h); ctx.strokeRect(x,y,w,h);
@@ -5201,7 +5483,22 @@
         ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
         ctx.setLineDash([]);
       }
-      if (constraint.kind==="sticky") {
+      if (constraint.kind==="piston" || constraint.kind==="telescoping") {
+        const middle=add(a,mul(delta,.5));
+        const railHalf=Math.min(distance*.3,28);
+        ctx.lineWidth=7;
+        ctx.strokeStyle=constraint.kind==="piston" ? "#59636b" : "#708998";
+        ctx.beginPath();
+        ctx.moveTo(middle.x-tangent.x*railHalf,middle.y-tangent.y*railHalf);
+        ctx.lineTo(middle.x+tangent.x*railHalf,middle.y+tangent.y*railHalf);
+        ctx.stroke();
+        ctx.lineWidth=2;
+        ctx.strokeStyle="#292725";
+        ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+        for (const point of [a,b]) {
+          ctx.beginPath(); ctx.arc(point.x,point.y,4,0,Math.PI*2); ctx.fill(); ctx.stroke();
+        }
+      } else if (constraint.kind==="sticky") {
         const bond=mul(add(a,b),.5);
         ctx.fillStyle="#b26cc7";
         ctx.beginPath(); ctx.arc(bond.x,bond.y,5,0,Math.PI*2); ctx.fill(); ctx.stroke();
@@ -5352,6 +5649,8 @@
     {id:"materialsticky",name:"draw sticky rectangle",tag:"material"},
     {id:"deformableline",name:"draw deformable line",tag:"deformable"},
     {id:"deformablerectangle",name:"draw deformable rectangle",tag:"deformable"},
+    {id:"hybridrectangle",name:"draw deformable + sliceable rectangle",tag:"deformable"},
+    {id:"memoryrectangle",name:"draw shape-memory rectangle",tag:"deformable"},
     {id:"triangle",name:"triangle",tag:"basic"},
     {id:"pentagon",name:"pentagon",tag:"basic"},
     {id:"hexagon",name:"hexagon",tag:"basic"},
@@ -5372,6 +5671,9 @@
     {id:"robot",name:"robot",tag:"character"},
     {id:"alien",name:"alien head",tag:"character"},
     {id:"ragdoll",name:"articulated ragdoll",tag:"special"},
+    {id:"onewayplatform",name:"interactive one-way platform",tag:"special"},
+    {id:"balloon",name:"pressure balloon",tag:"special"},
+    {id:"gravityfield",name:"adjustable gravity field",tag:"special"},
     {id:"ghost",name:"ghost",tag:"spooky"},
     {id:"skull",name:"skull",tag:"spooky"},
     {id:"snowman",name:"snowman",tag:"character"},
@@ -5446,6 +5748,8 @@
     if (type==="rectangle") return [{x:20,y:14},{x:80,y:14},{x:80,y:46},{x:20,y:46}];
     if (type==="deformableline") return [{x:12,y:24},{x:88,y:24},{x:88,y:36},{x:12,y:36}];
     if (type==="deformablerectangle") return [{x:18,y:12},{x:82,y:12},{x:82,y:48},{x:18,y:48}];
+    if (type==="hybridrectangle") return [{x:18,y:12},{x:82,y:12},{x:82,y:48},{x:18,y:48}];
+    if (type==="memoryrectangle") return [{x:18,y:12},{x:82,y:12},{x:82,y:48},{x:18,y:48}];
     if (type==="compound") return [{x:16,y:24},{x:44,y:24},{x:44,y:10},{x:56,y:10},{x:56,y:24},{x:84,y:24},{x:84,y:36},{x:56,y:36},{x:56,y:50},{x:44,y:50},{x:44,y:36},{x:16,y:36}];
     if (MATERIAL_SAMPLE_TYPES.has(type)) return [{x:16,y:15},{x:84,y:15},{x:84,y:45},{x:16,y:45}];
     if (type==="triangle") return regularPolygon(cx,cy,r,3,-Math.PI/2);
@@ -5516,7 +5820,9 @@
 
     preview.closePath();
     preview.fillStyle = MATERIAL_SAMPLE_COLORS[type] || FOOD_COLORS[type] ||
-      (type==="deformableline" ? "#738390" : type==="deformablerectangle" ? "#87949d" : type==="random" ? "#8a8a8a" : "#d7bd53");
+      (type==="deformableline" ? "#738390" : type==="deformablerectangle" ? "#87949d" :
+        type==="hybridrectangle" ? "#8f738e" : type==="memoryrectangle" ? "#6f9f91" :
+        type==="random" ? "#8a8a8a" : "#d7bd53");
     preview.fill();
     preview.lineWidth=1.5;
     preview.strokeStyle="#111";
@@ -5895,6 +6201,17 @@ if ("ResizeObserver" in window) {
       setRange(ui.inspectFuse,ui.inspectFuseValue,body.fuseDelay??.08,2);
       ui.inspectFuseValue.textContent=Number(ui.inspectFuse.value).toFixed(2)+"s";
     }
+    const balloon=body.shapeType==="balloon";
+    ui.balloonInspector.classList.toggle("visible",balloon);
+    if (balloon) setRange(ui.inspectBalloonPressure,ui.inspectBalloonPressureValue,body.balloonPressure??1,2);
+    const gravityField=body.shapeType==="gravityfield";
+    ui.gravityFieldInspector.classList.toggle("visible",gravityField);
+    if (gravityField) {
+      setRange(ui.inspectFieldStrength,ui.inspectFieldStrengthValue,body.fieldStrength??900,0);
+      setRange(ui.inspectFieldRadius,ui.inspectFieldRadiusValue,body.fieldRadius??260,0);
+    }
+    ui.memoryInspector.classList.toggle("visible",Boolean(body.shapeMemory));
+    if (body.shapeMemory) setRange(ui.inspectMemoryRate,ui.inspectMemoryRateValue,body.memoryRate??1.2,1);
   }
 
   function setInspectedMass(body,nextMass) {
@@ -5946,6 +6263,10 @@ if ("ResizeObserver" in window) {
     else if (target===ui.inspectBlastRadius) body.blastRadius=Number(target.value);
     else if (target===ui.inspectBlastForce) body.blastForce=Number(target.value);
     else if (target===ui.inspectFuse) body.fuseDelay=Number(target.value);
+    else if (target===ui.inspectBalloonPressure) body.balloonPressure=Number(target.value);
+    else if (target===ui.inspectFieldStrength) body.fieldStrength=Number(target.value);
+    else if (target===ui.inspectFieldRadius) body.fieldRadius=Number(target.value);
+    else if (target===ui.inspectMemoryRate) body.memoryRate=Number(target.value);
     body.sleeping=false;
     body.sleepTimer=0;
     syncObjectInspector();
@@ -6083,6 +6404,8 @@ if ("ResizeObserver" in window) {
       anchorA={...common};
       anchorB={...common};
     }
+    const initialLength=Math.max(12,length(sub(anchorB,anchorA)));
+    const actuatorSpeed=Number(ui.actuatorSpeed.value)||0;
     const constraint={
       id:idCounter++,
       kind,
@@ -6091,9 +6414,13 @@ if ("ResizeObserver" in window) {
       localA:rotate(sub(anchorA,bodyA.pos),-bodyA.angle),
       localB:bodyB ? rotate(sub(anchorB,bodyB.pos),-bodyB.angle) : null,
       worldB:bodyB ? null : {...anchorB},
-      restLength:(kind==="hinge" || kind==="motor") ? 0 : Math.max(12,length(sub(anchorB,anchorA))),
+      restLength:(kind==="hinge" || kind==="motor") ? 0 : initialLength,
       strength:selectedConstraintStrength()||1200,
       motorSpeed:kind==="motor" ? Number(ui.motorSpeed.value)||0 : 0,
+      minLength:initialLength,
+      maxLength:initialLength+Number(ui.actuatorTravel.value),
+      actuatorSpeed:Math.abs(actuatorSpeed),
+      actuatorDirection:actuatorSpeed<0 ? -1 : 1,
       load:0,
       age:0
     };
@@ -6144,7 +6471,8 @@ if ("ResizeObserver" in window) {
     ui.inspectMaterial,ui.inspectMass,ui.inspectGravity,ui.inspectFriction,
     ui.inspectBounce,ui.inspectDurability,ui.inspectColor,ui.inspectConveyor,
     ui.inspectConveyorGrip,ui.inspectSawSpeed,ui.inspectBulletSpeed,ui.inspectGunRecoil,ui.inspectLaserRate,
-    ui.inspectBlastRadius,ui.inspectBlastForce,ui.inspectFuse
+    ui.inspectBlastRadius,ui.inspectBlastForce,ui.inspectFuse,
+    ui.inspectBalloonPressure,ui.inspectFieldStrength,ui.inspectFieldRadius,ui.inspectMemoryRate
   ];
   for (const control of inspectorControls) {
     control.addEventListener("pointerdown",()=>{ inspectorHistoryRecorded=false; });
@@ -6173,6 +6501,11 @@ if ("ResizeObserver" in window) {
     const motorVisible=ui.buildTool.value==="motor";
     ui.motorSpeed.style.display=motorVisible ? "block" : "none";
     ui.motorSpeedLabel.style.display=motorVisible ? "flex" : "none";
+    const actuatorVisible=ui.buildTool.value==="piston" || ui.buildTool.value==="telescoping";
+    ui.actuatorTravel.style.display=actuatorVisible ? "block" : "none";
+    ui.actuatorTravelLabel.style.display=actuatorVisible ? "flex" : "none";
+    ui.actuatorSpeed.style.display=actuatorVisible ? "block" : "none";
+    ui.actuatorSpeedLabel.style.display=actuatorVisible ? "flex" : "none";
     const strengthVisible=!['weld','anchor','unbreakable'].includes(ui.buildTool.value);
     ui.constraintStrength.style.display=strengthVisible ? "block" : "none";
     ui.constraintStrengthLabel.style.display=strengthVisible ? "flex" : "none";
@@ -6181,9 +6514,15 @@ if ("ResizeObserver" in window) {
   ui.finishWeld.style.display="none";
   ui.motorSpeed.style.display="none";
   ui.motorSpeedLabel.style.display="none";
+  ui.actuatorTravel.style.display="none";
+  ui.actuatorTravelLabel.style.display="none";
+  ui.actuatorSpeed.style.display="none";
+  ui.actuatorSpeedLabel.style.display="none";
   ui.constraintStrength.oninput=updateConstraintStrengthLabel;
   updateConstraintStrengthLabel();
   ui.motorSpeed.oninput=()=>ui.motorSpeedValue.textContent=ui.motorSpeed.value;
+  ui.actuatorTravel.oninput=()=>ui.actuatorTravelValue.textContent=ui.actuatorTravel.value;
+  ui.actuatorSpeed.oninput=()=>ui.actuatorSpeedValue.textContent=ui.actuatorSpeed.value;
 
   function createDraggedShape(type,start,end) {
     if (type==="line") {
@@ -6203,6 +6542,23 @@ if ("ResizeObserver" in window) {
       if (!vertices) return;
       const body=bodyFromWorldVertices(vertices,{color:"#87949d",shapeType:type,material:materialFor(type)});
       bodies.push(configureDeformableBody(body,.52));
+    } else if (type==="hybridrectangle") {
+      const vertices=deformableRectanglePolygon(start,end);
+      if (!vertices) return;
+      const body=configureDeformableBody(bodyFromWorldVertices(vertices,{
+        color:"#8f738e",shapeType:type,material:materialFor("deformablerectangle")
+      }),.52);
+      body.sliceableDeformable=true;
+      bodies.push(body);
+    } else if (type==="memoryrectangle") {
+      const vertices=deformableRectanglePolygon(start,end);
+      if (!vertices) return;
+      const body=configureDeformableBody(bodyFromWorldVertices(vertices,{
+        color:"#6f9f91",shapeType:type,material:materialFor("deformablerectangle")
+      }),.5);
+      body.shapeMemory=true;
+      body.memoryRate=1.2;
+      bodies.push(body);
     } else if (type==="rectangle" || MATERIAL_SAMPLE_TYPES.has(type)) {
       if (Math.abs(end.x-start.x)<6 || Math.abs(end.y-start.y)<6) return;
       const vertices=[
@@ -6552,6 +6908,14 @@ function setMode(nextMode) {
   }
 
   ui.impact.onclick = ()=>setImpactMode(!impactMode);
+  ui.sound.onclick=()=>{
+    soundEnabled=!soundEnabled;
+    ui.sound.textContent=soundEnabled ? "Sound: on" : "Sound: off";
+    ui.sound.setAttribute("aria-pressed",String(soundEnabled));
+    ui.sound.classList.toggle("active",soundEnabled);
+    if (soundEnabled) ensureAudioContext();
+  };
+  ui.sound.classList.add("active");
   function fireGunsWithHistory() {
     if (!bodies.some(body=>body.shapeType==="gun")) return;
     recordHistory();
