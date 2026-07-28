@@ -4,44 +4,172 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Rishaan's Test</title>
+    <title>Rishaan's Projects</title>
 
     <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
         body {
             margin: 0;
             font-family: Arial, sans-serif;
-            background: #f2f2f2;
+            background: #eeeeee;
             color: #222;
         }
 
-        header {
-            padding: 30px 20px;
+        nav {
+            padding: 15px 20px;
             background: white;
-            border-bottom: 1px solid #ddd;
-            text-align: center;
+            border-bottom: 1px solid #ccc;
+        }
+
+        .nav-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 800px;
+            margin: auto;
+        }
+
+        .nav-title {
+            margin: 0;
+            font-size: 20px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 16px;
+        }
+
+        .nav-links a {
+            color: #444;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .nav-links a:hover {
+            text-decoration: underline;
+        }
+
+        header {
+            padding: 55px 20px;
+            background: white;
+            border-bottom: 1px solid #ccc;
+        }
+
+        .header-content {
+            max-width: 800px;
+            margin: auto;
         }
 
         header h1 {
-            margin: 0;
-            font-size: 34px;
+            margin: 0 0 12px;
+            font-size: 38px;
         }
 
         header p {
-            margin: 8px 0 0;
+            max-width: 620px;
+            margin: 0;
+            color: #555;
+            font-size: 17px;
+            line-height: 1.6;
+        }
+
+        .header-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 22px;
+        }
+
+        .button {
+            display: inline-block;
+            padding: 10px 17px;
+            border: 1px solid #222;
+            border-radius: 5px;
+            color: white;
+            background: #222;
+            text-decoration: none;
+        }
+
+        .button:hover {
+            background: #444;
+        }
+
+        .button.secondary {
+            color: #222;
+            background: white;
+        }
+
+        .button.secondary:hover {
+            background: #eeeeee;
+        }
+
+        main {
+            max-width: 800px;
+            margin: auto;
+            padding: 20px;
+        }
+
+        section {
+            margin: 45px 0;
+        }
+
+        section h2 {
+            margin: 0 0 10px;
+            font-size: 27px;
+        }
+
+        .section-description {
+            margin: 0 0 20px;
             color: #666;
+            line-height: 1.5;
+        }
+
+        .about-box {
+            padding: 22px;
+            border: 1px solid #ccc;
+            border-radius: 7px;
+            background: white;
+        }
+
+        .about-box p {
+            margin: 0 0 14px;
+            line-height: 1.65;
+        }
+
+        .about-box p:last-child {
+            margin-bottom: 0;
+        }
+
+        .skills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 9px;
+        }
+
+        .skill {
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background: white;
+            font-size: 14px;
         }
 
         .search-area {
-            max-width: 700px;
-            margin: 30px auto 0;
-            padding: 0 20px;
+            margin-bottom: 20px;
         }
 
         #projectSearch {
             width: 100%;
-            padding: 12px 15px;
-            border: 1px solid #ccc;
-            border-radius: 6px;
+            padding: 12px 14px;
+            border: 1px solid #bbb;
+            border-radius: 5px;
             background: white;
             font-family: Arial, sans-serif;
             font-size: 16px;
@@ -53,73 +181,83 @@
         }
 
         #resultCount {
-            margin: 10px 2px 0;
+            margin: 9px 2px 0;
             color: #777;
             font-size: 14px;
         }
 
-        #noResults {
-            display: none;
-            margin: 35px 0;
-            color: #777;
-            text-align: center;
-        }
-
-        .container {
-            max-width: 700px;
-            margin: 30px auto 40px;
-            padding: 0 20px;
-        }
-
         .project {
-            padding: 20px;
-            margin-bottom: 20px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
+            padding: 22px;
+            margin-bottom: 18px;
+            border: 1px solid #ccc;
+            border-radius: 7px;
             background: white;
         }
 
-        .project h2 {
-            margin: 0 0 10px;
+        .project h3 {
+            margin: 0 0 9px;
+            font-size: 22px;
         }
 
         .project p {
             margin: 0 0 16px;
-            line-height: 1.5;
+            color: #555;
+            line-height: 1.55;
         }
 
-        .button {
-            display: inline-block;
-            padding: 10px 18px;
-            border-radius: 5px;
-            color: white;
-            background: #222;
-            text-decoration: none;
-            transition: background 0.2s;
+        .project-info {
+            margin-bottom: 17px;
+            color: #777;
+            font-size: 13px;
         }
 
-        .button:hover {
-            background: #444;
-        }
-
-        .button:focus-visible {
-            outline: 3px solid #999;
-            outline-offset: 3px;
-        }
-
-        footer {
-            padding: 30px;
+        #noResults {
+            display: none;
+            padding: 25px 0;
             color: #777;
             text-align: center;
         }
 
-        @media (max-width: 500px) {
+        .contact-box {
+            padding: 22px;
+            border: 1px solid #ccc;
+            border-radius: 7px;
+            background: white;
+        }
+
+        .contact-box p {
+            margin: 0 0 17px;
+            color: #555;
+            line-height: 1.6;
+        }
+
+        footer {
+            padding: 28px 20px;
+            border-top: 1px solid #ccc;
+            color: #777;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        @media (max-width: 550px) {
+            .nav-links {
+                gap: 10px;
+            }
+
+            .nav-links a {
+                font-size: 13px;
+            }
+
+            header {
+                padding: 42px 20px;
+            }
+
             header h1 {
-                font-size: 29px;
+                font-size: 32px;
             }
 
             .project {
-                padding: 17px;
+                padding: 18px;
             }
         }
     </style>
@@ -127,119 +265,233 @@
 
 <body>
 
+<nav>
+    <div class="nav-content">
+        <p class="nav-title">Rishaan's Projects</p>
+
+        <div class="nav-links">
+            <a href="#about">About</a>
+            <a href="#projects">Projects</a>
+            <a href="#contact">GitHub</a>
+        </div>
+    </div>
+</nav>
+
 <header>
-    <h1>Rishaan's Test</h1>
-    <p>A collection of my projects.</p>
+    <div class="header-content">
+        <h1>Hi, I'm Rishaan.</h1>
+
+        <p>
+            I like coding random games, simulations, websites and other
+            projects. This website is where I put some of the stuff I've made.
+        </p>
+
+        <div class="header-buttons">
+            <a class="button" href="#projects">
+                View Projects
+            </a>
+
+            <a
+                class="button secondary"
+                href="https://github.com/rdogif"
+                target="_blank"
+                rel="noopener noreferrer"
+            >
+                My GitHub
+            </a>
+        </div>
+    </div>
 </header>
 
-<div class="search-area">
-    <input
-        type="search"
-        id="projectSearch"
-        placeholder="Search projects..."
-        aria-label="Search projects"
-        autocomplete="off"
-    >
+<main>
 
-    <p id="resultCount"></p>
-</div>
+    <section id="about">
+        <h2>About me</h2>
 
-<main class="container" id="projectContainer">
-
-   
-
-    <div class="project">
-        <h2>Name generator for stupid babies</h2>
-
-        <p>
-            Stupid baby name generator inspired by GTA.
+        <p class="section-description">
+            Some basic stuff about me and what I like making.
         </p>
 
-        <a class="button" href="gtabrr/">
-            Open Generator
-        </a>
-    </div>
+        <div class="about-box">
+            <p>
+                I'm a student who likes computer science, programming,
+                video games and technology.
+            </p>
 
-  <div class="project">
-        <h2>Talk to a monkey</h2>
+            <p>
+                Most of my projects start as random ideas. Sometimes they are
+                actual useful websites, and sometimes they are things like
+                monkeys fighting or stupid name generators.
+            </p>
 
-        <p>
-            mhm
+            <p>
+                I currently use HTML, CSS and JavaScript for most of my
+                websites. I've also worked with Java, Python, Lua, Roblox
+                Studio and GitHub.
+            </p>
+
+            <p>
+                I'm still learning, so some of these projects might be simple,
+                weird or unfinished.
+            </p>
+        </div>
+    </section>
+
+    <section id="skills">
+        <h2>Stuff I use</h2>
+
+        <p class="section-description">
+            Languages and tools I've used before.
         </p>
 
-        <a class="button" href="mchat/">
-            Open Chat
-        </a>
-    </div>
-    
-<div class="project">
-        <h2>Slicing simulator</h2>
+        <div class="skills">
+            <span class="skill">HTML</span>
+            <span class="skill">CSS</span>
+            <span class="skill">JavaScript</span>
+            <span class="skill">Java</span>
+            <span class="skill">Python</span>
+            <span class="skill">Lua</span>
+ <span class="skill">Unreal Engine</span>
 
-        <p>
-            Slice a bunch of shapes
+        </div>
+    </section>
+
+    <section id="projects">
+        <h2>Projects</h2>
+
+        <p class="section-description">
+            These are some of the projects currently on this website.
         </p>
 
-        <a class="button" href="ssim/">
-            Open simulator
-        </a>
-    </div>
-    
-    <div class="project">
-        <h2>Simple blackjack game</h2>
+        <div class="search-area">
+            <input
+                type="search"
+                id="projectSearch"
+                placeholder="Search projects..."
+                aria-label="Search projects"
+                autocomplete="off"
+            >
 
-        <p>
-            Just play it.
-        </p>
+            <p id="resultCount"></p>
+        </div>
 
-        <a class="button" href="blackjack/">
-            Open Game
-        </a>
-    </div>
+        <div id="projectContainer">
 
-    <div class="project">
-        <h2>Watch monkeys fight</h2>
+            <div class="project">
+                <h3>Name generator for stupid babies</h3>
 
-        <p>
-            Monkey tournament.
-        </p>
+                <p>
+                    A stupid baby name generator inspired by GTA.
+                    It creates the worstest of names.
+                </p>
 
-        <a class="button" href="mfight/">
-            Open Simulation
-        </a>
-    </div>
+                <div class="project-info">
+                    Made with HTML, CSS and JavaScript
+                </div>
 
-    <p id="noResults">
-        No projects found.
-    </p>
+                <a class="button" href="gtabrr/">
+                    Open Generator
+                </a>
+            </div>
 
-    <!--
-    HOW TO ADD ANOTHER PROJECT:
+            <div class="project">
+                <h3>Talk to a monkey</h3>
 
-    Copy this section and paste it above the "noResults" paragraph:
+                <p>
+                    An ai powered chat website which uses MY MONEY where you talk to a dumb monkey.
+            
+                </p>
 
-    <div class="project">
-        <h2>Project Name</h2>
+                <div class="project-info">
+                    Made with HTML, CSS, JavaScript and an API
+                </div>
 
-        <p>
-            Short description.
-        </p>
+                <a class="button" href="mchat/">
+                    Open Chat
+                </a>
+            </div>
 
-        <a class="button" href="project-folder/">
-            Open Project
-        </a>
-    </div>
+            <div class="project">
+                <h3>Slicing simulator</h3>
 
-    Then make a folder named:
+                <p>
+                    A physics sandbox where you can spawn different objects,
+                    move them around and slice them.
+                </p>
 
-    project-folder
+                <div class="project-info">
+                    Made with HTML, CSS and JavaScript
+                </div>
 
-    Put that project's index.html inside the folder.
-    -->
+                <a class="button" href="ssim/">
+                    Open Simulator
+                </a>
+            </div>
+
+            <div class="project">
+                <h3>Simple blackjack game</h3>
+
+                <p>
+                    A basic blackjack game you can play in your browser.
+                    Nothing too serious.
+                </p>
+
+                <div class="project-info">
+                    Made with HTML, CSS and JavaScript
+                </div>
+
+                <a class="button" href="blackjack/">
+                    Open Game
+                </a>
+            </div>
+
+            <div class="project">
+                <h3>Watch monkeys fight</h3>
+
+                <p>
+                    A monkey tournament simulation.
+                    The monkeys fight until one wins.
+                </p>
+
+                <div class="project-info">
+                    Made with HTML, CSS and JavaScript
+                </div>
+
+                <a class="button" href="mfight/">
+                    Open Simulation
+                </a>
+            </div>
+
+            <p id="noResults">
+                No projects found.
+            </p>
+
+        </div>
+    </section>
+
+    <section id="contact">
+        <h2>GitHub</h2>
+
+        <div class="contact-box">
+            <p>
+                More of my code and repositories are on my GitHub account (dont have any as of right now tho i dont think)
+            </p>
+
+            <a
+                class="button"
+                href="https://github.com/rdogif"
+                target="_blank"
+                rel="noopener noreferrer"
+            >
+                Go to my GitHub
+            </a>
+        </div>
+    </section>
 
 </main>
 
 <footer>
-    Made by Rishaan
+    Made by Rishaan · <span id="year"></span>
 </footer>
 
 <script>
@@ -247,6 +499,7 @@
     const projects = document.querySelectorAll(".project");
     const noResults = document.getElementById("noResults");
     const resultCount = document.getElementById("resultCount");
+    const year = document.getElementById("year");
 
     function updateSearch() {
         const searchText = searchBar.value.toLowerCase().trim();
@@ -278,9 +531,10 @@
     }
 
     searchBar.addEventListener("input", updateSearch);
-    
 
-updateSearch();
+    year.textContent = new Date().getFullYear();
+
+    updateSearch();
 </script>
 
 </body>
