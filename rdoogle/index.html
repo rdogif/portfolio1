@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Rdoogle — Rishaan's modern better search site.">
+    <title>Rdoogle</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;700&family=Newsreader:opsz,wght@6..72,400;6..72,700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="site-shell">
+        <header class="masthead">
+            <p class="wordmark">Rdoogle</p>
+            <p class="deck">Wayy better than wikipedia -rishaan 2026</p>
+
+            <form class="search-form" id="search-form" role="search">
+                <label for="search-input">Search Rdoogle</label>
+                <div class="search-row">
+                    <span class="search-mark" aria-hidden="true"></span>
+                    <input id="search-input" name="q" type="search" placeholder="e.g. Octopus intelligence" autocomplete="off">
+                    <button class="search-button" id="search-button" type="submit">Search</button>
+                </div>
+                <p class="search-status" id="search-status" role="status" aria-live="polite"></p>
+            </form>
+        </header>
+
+        <main id="main-content">
+            <section class="opening-state" id="opening-state">
+                <h1>Litteraly no different than wikipedia just better tho</h1>
+                <div class="suggestion-block">
+                    <p>Try a starting point</p>
+                    <div class="suggestion-list">
+                        <button type="button" data-search="tung tung tung sahur">tung tung tung sahur <span aria-hidden="true">↗</span></button>
+                        <button type="button" data-search="monkeys">monkeys <span aria-hidden="true">↗</span></button>
+                    </div>
+                </div>
+            </section>
+
+            <section class="loading-state" id="loading-state" hidden aria-hidden="true">
+                <div><span></span><span></span><span></span><span></span></div>
+                <div><span class="wide"></span><span></span><span class="short"></span></div>
+            </section>
+
+            <section class="notice-state" id="notice-state" hidden>
+                <p class="notice-symbol" aria-hidden="true">?</p>
+                <div>
+                    <h1 id="notice-title"></h1>
+                    <p id="notice-message"></p>
+                    <button type="button" id="revise-search">Revise search</button>
+                </div>
+            </section>
+
+            <section class="workbench" id="workbench" hidden aria-label="Rdoogle search results">
+                <aside class="result-index">
+                    <h1>Results</h1>
+                    <div class="result-list" id="result-list" role="list"></div>
+                </aside>
+                <article class="reader" id="reader"></article>
+            </section>
+
+            <section class="recent" id="recent-section" hidden>
+                <h2>Recent lookups</h2>
+                <div id="recent-list"></div>
+            </section>
+        </main>
+
+        <footer class="footer"><p>Rdoogle</p></footer>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>
