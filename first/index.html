@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <style>
+
+        
+
+
+        body {
+            background-color: #000000;
+            color: #ffffff;
+            font-family: 'Roboto', sans-serif;
+            text-align: center;
+        }
+        h1 {
+            cursor: pointer;
+            text-align: center;
+            color: #0037ff;
+            background-color: #ff000066;
+            background-blend-mode: overlay;
+            
+            width: fit-content; 
+            padding: 10px 5px;
+            margin: 0 auto;
+            position: sticky;
+            top: 0%;
+        }
+        #myButton {
+            background-color: #ff0000;
+            color: #ffffff;
+            border: none;
+            padding: 10px 20px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+        }
+        html {
+            scrollbar-width: none;
+            scroll-behavior: smooth;
+        }
+        
+       .f3d{
+            box-shadow: #bfeebf 5px 5px 10px 0px inset, #05330f -5px -5px 10px 0px inset,#000000 5px 5px 10px 0px ;
+            border-radius: 25px;
+            color: #ffffff;
+            background: #399249;
+       }
+        #dragBox {
+            position:absolute;
+            cursor: grab;
+            user-select: none; 
+            
+            padding: 50px; 
+            
+            width: fit-content;
+            
+            transition: transform 0.1s ease-in-out;
+        }
+        #dragBox:active {
+            cursor: grabbing;
+            transform: rotate(12deg) scale(1.1);
+        }
+    </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rishaans Website</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+</head>
+<body>
+    <h1>Welcome to My Website</h1>
+    <p>This is my first HTML page.</p>
+    <button id="myButton" style="margin-top: 30px;" onclick="buttonClicked()">Click Me</button>
+    <p id="clickCount">Button clicked 0 times.</p>
+    <form onsubmit="checkPass(); return false"><input id="passwordText" style="margin-top: 30px;" type="password" placeholder="enter password" ><button id="enterPass" onclick="checkPass()">Submit</button></form> 
+    <p id="passText"></p>
+    <input style="margin-top: 30px;" id="s1" type="text" placeholder="write text here"><button onclick="downloadPdf()">Convert text to pdf</button>
+    <br><input id="fileName" placeholder="File name"><input id="fontSize" type="number" placeholder="Size of text">
+    
+    <div  id="firstDiv" style="outline: 10px rgb(51, 254, 176) solid; background: linear-gradient(180deg,rgba(42, 123, 155, 1) 0%, rgba(105, 194, 115, 1) 47%, rgba(237, 221, 83, 1) 100%); border-radius: 5%; width: fit-content; margin: 0 auto; margin-bottom: 40px; font-size: 50px; color: #000000; padding: 2%; margin-top: 40px;">
+        tung tung tung sahur
+        <br>
+        <img id="ttt" src="https://cdn-acop.makeronline.com/asop/2025-05/08/png/174664746306936400-681bb9a710ef.png" alt="This is tung tung tung sahur">
+        <p style="font-style: italic;margin-bottom: 0px;margin-top: 0px;">This is triple T.</p>
+        <p style="margin: 0px;"><small>is he cute?</small></p>
+        <button id="yesT" type="button" style="border: none; margin: 5px;font-size: 100%; background-color: greenyellow;">Yes</button><button id="noT" type="button" style="margin: 5px;border: none; font-size: 100%; background-color: red;">No</button>
+        <p style="margin: 0%;" id="isRight"></p>
+    </div>
+
+    <!-- Cleaned markup and initial position setup -->
+    <div  id="dragBox" class="f3d" style=" top: 660px; left: 1500px;">
+        Drag me
+    </div>
+
+   <a href="#top"> <button  style="padding: 1%; position:fixed; bottom: 15px; right: 15px; cursor: pointer" class="f3d"> Back to top </button></a>
+
+
+    <label for="csl">cool slider</label>
+    <input id="csl" type="range" min="0" max="100" style="margin-top: 0%;" value="100">
+    <h3 id="cslider" style="margin-bottom: 0; margin-top: 0px;">you are cool</h3>
+
+
+
+
+
+
+</body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+document.getElementById("cslider").innerText = `You are ${document.getElementById("csl").value}% cool.`;
+
+
+        document.getElementById("csl").addEventListener("input",(event)=>{
+            let val = document.getElementById("csl").value;
+            switch(true){
+                case (val==="0"):
+                    document.getElementById("cslider").innerText = `Thats so sad`;
+                break;
+                case (val==="67" || val=="41"):
+                    document.getElementById("cslider").innerText = `You are not cool.`;
+                break;
+                case (val==="100"):
+                    document.getElementById("cslider").innerText = `You are maximum cool.`;
+                break;
+            default:
+                document.getElementById("cslider").innerText = `You are ${document.getElementById("csl").value}% cool.`;
+            }
+            
+        })
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    const dragBox = document.getElementById("dragBox");
+
+    dragBox.addEventListener("mousedown", (e) => {
+       
+        
+
+        function onMouseMove(event) {
+            dragBox.style.left = (event.clientX-75) + "px";
+            dragBox.style.top = (event.clientY-55*(window.scrollY/1000)) + "px";
+        }
+
+        window.addEventListener("mousemove", onMouseMove);
+
+        window.addEventListener("mouseup", () => {
+            window.removeEventListener("mousemove", onMouseMove);
+        }, { once: true });
+    });
+
+    document.getElementById("yesT").addEventListener("click", yesClicked);
+    document.getElementById("noT").addEventListener("click", noClicked);
+    
+    function yesClicked() {
+        document.getElementById("ttt").width = "248";
+        document.getElementById("isRight").style.color = "black";
+        document.getElementById("isRight").textContent = "You are correct!";
+        document.getElementById("ttt").src = "https://cdn-acop.makeronline.com/asop/2025-05/08/png/174664746306936400-681bb9a710ef.png";
+    }
+    
+    function noClicked() {
+        document.getElementById("isRight").style.color = "red";
+        document.getElementById("isRight").textContent = "You are WRONG!!";
+        document.getElementById("ttt").src = "https://tr.rbxcdn.com/180DAY-5e42a82a55faf0f22dee11d46c94aebd/420/420/Hat/Webp/noFilter"
+        document.getElementById("ttt").width = "248";
+    }
+    
+    let clicks = 0;
+    const buttonClicked = () => {
+        clicks++;
+        document.getElementById("clickCount").textContent = `Button clicked ${clicks} times.`;
+        if(clicks === 10){
+            document.getElementById("clickCount").textContent = "Achievement unlocked: 10 clicks!";
+        } else if (clicks === 20){
+            document.getElementById("clickCount").textContent = "Achievement unlocked: the final achievement..";
+        }
+    }
+
+    function checkPass(){
+        if(document.getElementById("passwordText").value === "rishu"){
+            document.getElementById("passText").textContent="Correct!";
+        }else{
+            document.getElementById("passText").textContent="password incorrect (hint its rishu)";
+        }
+    }
+    document.querySelector("h1").addEventListener("click",()=>{
+        document.querySelector("h1").remove();
+    })
+    function downloadPdf(){
+        let pdf = new jspdf.jsPDF();
+        let text = document.getElementById("s1").value;
+        let fontSize = Number(document.getElementById("fontSize").value);
+
+        pdf.setFontSize(fontSize);
+        let lines = pdf.splitTextToSize(text, 180);
+        let y = 20;
+        let lineHeight = fontSize * 0.5;
+
+        for (let line of lines) {
+            if (y > 280) {
+                pdf.addPage();
+                y = 20;
+            }
+            pdf.text(line, 10, y);
+            y += lineHeight;
+        }
+        pdf.save(document.getElementById("fileName").value);
+    }
+</script>
+</html>
